@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_, or_, func, any_, text, update
@@ -25,6 +25,17 @@ from schemas import (
     MilestoneSubmitResponse,
     MilestoneApproveResponse
 )
+from utils.twilio import (
+    notify_employer_new_gig_request,
+    notify_freelancer_gig_request_accepted,
+    notify_freelancer_gig_request_rejected,
+    notify_employer_milestone_submitted,
+    notify_freelancer_milestone_approved,
+    notify_freelancer_milestone_rejected,
+    notify_freelancer_gig_completed,
+    notify_employer_gig_completed
+)
+from utils.aws import upload_image_to_s3, is_url
 
 router = APIRouter()
 
@@ -223,8 +234,20 @@ async def create_gig_request(request_data: GigRequestCreate, db: AsyncSession = 
     await db.commit()
     await db.refresh(new_request)
     
-    # Here you would add Twilio notification to employer about new request
-    # Will be implemented in the utils/twilio.py
+    # Send Twilio notification to employer about new request
+    # Get user names for the notification
+    employer_result = await db.execute(select(User).filter(User.clerkId == gig.employerClerkId))
+    employer = employer_result.scalar_one_or_none()
+    
+    freelancer_result = await db.execute(select(User).filter(User.clerkId == request_data.freelancerClerkId))
+    freelancer = freelancer_result.scalar_one_or_none()
+    
+    if employer and freelancer:
+        await notify_employer_new_gig_request(
+            employer_phone="+917009023965",
+            freelancer_name=freelancer.firstName + " " + freelancer.lastName,
+            gig_title=gig.title
+        )
     
     return new_request
 
@@ -458,7 +481,30 @@ async def update_gig_request(
         db.add(new_active_gig)
     
     # For both accept and reject, send Twilio notification
-    # Will be implemented in utils/twilio.py
+    # Get user details
+    employer_result = await db.execute(select(User).filter(User.clerkId == request.employerClerkId))
+    employer = employer_result.scalar_one_or_none()
+    
+    freelancer_result = await db.execute(select(User).filter(User.clerkId == request.freelancerClerkId))
+    freelancer = freelancer_result.scalar_one_or_none()
+    
+    # Get gig details
+    gig_result = await db.execute(select(Gig).filter(Gig.id == request.gig_id))
+    gig = gig_result.scalar_one_or_none()
+    
+    if employer and freelancer and gig:
+        if request_status == "ACCEPTED":
+            await notify_freelancer_gig_request_accepted(
+                freelancer_phone="+917009023965",
+                gig_title=gig.title,
+                employer_name=employer.firstName + " " + employer.lastName
+            )
+        elif request_status == "REJECTED":
+            await notify_freelancer_gig_request_rejected(
+                freelancer_phone="+917009023965",
+                gig_title=gig.title,
+                employer_name=employer.firstName + " " + employer.lastName
+            )
     
     await db.commit()
     await db.refresh(request)
@@ -521,14 +567,50 @@ async def get_freelancer_active_gigs(clerk_id: str, db: AsyncSession = Depends(g
     return processed_gigs
 
 # Submit milestone
-@router.post("/active/{active_gig_id}/milestone", response_model=MilestoneSubmitResponse)
+@router.post("/active/{active_gig_id}/milestone", response_model=MilestoneSubmitResponse,
+          summary="Submit milestone with links and files",
+          description="Submit a milestone with both links and file uploads for a gig.",
+          openapi_extra={
+              "requestBody": {
+                  "content": {
+                      "multipart/form-data": {
+                          "schema": {
+                              "type": "object",
+                              "properties": {
+                                  "milestone_index": {"type": "integer"},
+                                  "links": {
+                                      "type": "string", 
+                                      "description": "JSON string array of links"
+                                  },
+                                  "files": {
+                                      "type": "array",
+                                      "items": {
+                                          "type": "string",
+                                          "format": "binary"
+                                      }
+                                  }
+                              },
+                              "required": ["milestone_index", "links"]
+                          }
+                      }
+                  }
+              }
+          })
 async def submit_milestone(
     active_gig_id: int,
-    submission: MilestoneSubmission,
+    milestone_index: int = Form(...),
+    links: str = Form(...),
+    files: List[UploadFile] = File([]),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Submit links for a milestone.
+    Submit links and/or files for a milestone.
+    
+    Args:
+        active_gig_id: The ID of the active gig (path parameter)
+        milestone_index: The index of the milestone to submit
+        links: A JSON string containing an array of links (e.g., ["https://example.com", "https://example2.com"])
+        files: Optional list of image files to upload
     """
     # Get the active gig
     result = await db.execute(select(ActiveGig).filter(ActiveGig.id == active_gig_id))
@@ -545,6 +627,34 @@ async def submit_milestone(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"This gig is not active (current status: {active_gig.status})"
         )
+    
+    # Parse the links from JSON string
+    try:
+        submission_links = json.loads(links)
+        if not isinstance(submission_links, list):
+            submission_links = []
+    except (json.JSONDecodeError, TypeError):
+        # If the link is not a valid JSON array, try treating it as a single URL
+        if isinstance(links, str) and links.strip():
+            submission_links = [links.strip()]
+        else:
+            submission_links = []
+    
+    # Upload any files to S3 and add their URLs to the links
+    for file in files:
+        if file and file.filename:  # Check if file is not None and not empty
+            try:
+                file_url = upload_image_to_s3(file, folder="milestones")
+                submission_links.append(file_url)
+            except Exception as e:
+                print(f"Error uploading file {file.filename}: {str(e)}")
+                # Continue with other files even if one fails
+    
+    # Create submission object
+    submission = MilestoneSubmission(
+        milestone_index=milestone_index,
+        links=submission_links
+    )
     
     # Check milestone index is valid
     if submission.milestone_index < 0 or submission.milestone_index >= len(active_gig.milestone_status):
@@ -613,6 +723,26 @@ async def submit_milestone(
     result = await db.execute(select(ActiveGig).filter(ActiveGig.id == active_gig_id))
     active_gig = result.scalar_one_or_none()
     print(f"After refresh - milestone_links: {active_gig.milestone_links}")
+    
+    # Send notification to employer about milestone submission
+    # Get gig details
+    gig_result = await db.execute(select(Gig).filter(Gig.id == active_gig.gig_id))
+    gig = gig_result.scalar_one_or_none()
+    
+    # Get user details
+    employer_result = await db.execute(select(User).filter(User.clerkId == active_gig.employerClerkId))
+    employer = employer_result.scalar_one_or_none()
+    
+    freelancer_result = await db.execute(select(User).filter(User.clerkId == active_gig.freelancerClerkId))
+    freelancer = freelancer_result.scalar_one_or_none()
+    
+    if employer and freelancer and gig:
+        await notify_employer_milestone_submitted(
+            employer_phone="+917009023965",
+            freelancer_name=freelancer.firstName + " " + freelancer.lastName,
+            gig_title=gig.title,
+            milestone_number=submission.milestone_index + 1  # Convert 0-index to human-readable 1-index
+        )
     
     # Parse milestone_links if it's a JSON string
     milestone_links_data = active_gig.milestone_links
@@ -803,6 +933,45 @@ async def approve_milestone(
     
     print(f"After refresh - active_gig.milestone_links: {active_gig.milestone_links}")
     
+    # Send notification to freelancer about milestone approval
+    # Get gig details
+    gig_result = await db.execute(select(Gig).filter(Gig.id == active_gig.gig_id))
+    gig = gig_result.scalar_one_or_none()
+    
+    # Get user details
+    freelancer_result = await db.execute(select(User).filter(User.clerkId == active_gig.freelancerClerkId))
+    freelancer = freelancer_result.scalar_one_or_none()
+    
+    if freelancer and gig:
+        current_milestone_payment = gig.milestone_payments[milestone_index]
+        await notify_freelancer_milestone_approved(
+            freelancer_phone="+917009023965",
+            gig_title=gig.title,
+            milestone_number=milestone_index + 1,  # Convert 0-index to human-readable 1-index
+            payment_amount=current_milestone_payment
+        )
+        
+        # If gig is completed, send completion notifications to both parties
+        if active_gig.status == "COMPLETED":
+            # Get employer details
+            employer_result = await db.execute(select(User).filter(User.clerkId == active_gig.employerClerkId))
+            employer = employer_result.scalar_one_or_none()
+            
+            if employer:
+                # Notify freelancer about gig completion
+                await notify_freelancer_gig_completed(
+                    freelancer_phone="+917009023965",
+                    gig_title=gig.title,
+                    total_payment=gig.total_payment
+                )
+                
+                # Notify employer about gig completion
+                await notify_employer_gig_completed(
+                    employer_phone="+917009023965",
+                    gig_title=gig.title,
+                    freelancer_name=freelancer.firstName + " " + freelancer.lastName
+                )
+    
     # Parse milestone_links if it's a JSON string
     milestone_links_data = active_gig.milestone_links
     if isinstance(milestone_links_data, str):
@@ -921,7 +1090,19 @@ async def reject_milestone(
     active_gig = result.scalar_one_or_none()
     
     # Send Twilio notification to freelancer about gig termination
-    # Will be implemented in utils/twilio.py
+    # Get gig details
+    gig_result = await db.execute(select(Gig).filter(Gig.id == active_gig.gig_id))
+    gig = gig_result.scalar_one_or_none()
+    
+    # Get user details
+    freelancer_result = await db.execute(select(User).filter(User.clerkId == active_gig.freelancerClerkId))
+    freelancer = freelancer_result.scalar_one_or_none()
+    
+    if freelancer and gig:
+        await notify_freelancer_milestone_rejected(
+            freelancer_phone="+917009023965",
+            gig_title=gig.title
+        )
     
     # Parse milestone_links if it's a JSON string
     if isinstance(active_gig.milestone_links, str):
@@ -979,4 +1160,5 @@ async def get_milestone_links(
         "milestone_count": len(active_gig.milestone_status),
         "gig_title": gig.title,
         "gig_milestones": gig.milestones
-    } 
+    }
+

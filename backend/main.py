@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from routers.user.user import router as user_router
 from routers.user_details.user_details import router as user_details_router
 from routers.gigs.gigs import router as gigs_router
+from routers.balance import router as balance_router
 
 load_dotenv()
 
@@ -25,6 +26,7 @@ app.add_middleware(
 app.include_router(user_router, prefix="/users", tags=["users"])
 app.include_router(user_details_router, prefix="/user-details", tags=["user-details"])
 app.include_router(gigs_router, prefix="/gigs", tags=["gigs"])
+app.include_router(balance_router, prefix="/balance", tags=["balance"])
 
 @app.get("/", tags=["root"])
 async def read_root():

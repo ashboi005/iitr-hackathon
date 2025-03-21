@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import List
+from typing import List, Optional
+import json
 
 from database import get_db
 from models import User, UserDetails, FreelancerDetails, EmployerDetails
@@ -10,45 +11,89 @@ from schemas import (
     FreelancerDetailsCreate, FreelancerDetailsResponse, FreelancerDetailsBase,
     EmployerDetailsCreate, EmployerDetailsResponse, EmployerDetailsBase
 )
+from utils.aws import upload_image_to_s3
 
 router = APIRouter()
 
 # UserDetails routes
 
-@router.post("/basic", response_model=UserDetailsResponse, status_code=status.HTTP_201_CREATED)
-async def create_user_details(user_details_data: UserDetailsCreate, db: AsyncSession = Depends(get_db)):
+@router.post("/basic", response_model=UserDetailsResponse, status_code=status.HTTP_201_CREATED,
+          summary="Create user details with optional profile picture",
+          description="Create basic user details for a user with an optional profile picture upload.",
+          openapi_extra={
+              "requestBody": {
+                  "content": {
+                      "multipart/form-data": {
+                          "schema": {
+                              "type": "object",
+                              "properties": {
+                                  "clerkId": {"type": "string"},
+                                  "phone": {"type": "string", "nullable": True},
+                                  "address": {"type": "string", "nullable": True},
+                                  "bio": {"type": "string", "nullable": True},
+                                  "profilePicture": {
+                                      "type": "string", 
+                                      "format": "binary",
+                                      "nullable": True
+                                  }
+                              },
+                              "required": ["clerkId"]
+                          }
+                      }
+                  }
+              }
+          })
+async def create_user_details(
+    clerkId: str = Form(...),
+    phone: Optional[str] = Form(None),
+    address: Optional[str] = Form(None),
+    bio: Optional[str] = Form(None),
+    profilePicture: Optional[UploadFile] = File(None),
+    db: AsyncSession = Depends(get_db)
+):
     """
     Create basic user details for a user.
+    
+    - **clerkId**: User's Clerk ID
+    - **phone**: Optional phone number
+    - **address**: Optional address
+    - **bio**: Optional user bio
+    - **profilePicture**: Optional profile picture file (image only)
     """
     # Check if user exists
-    result = await db.execute(select(User).filter(User.clerkId == user_details_data.clerkId))
+    result = await db.execute(select(User).filter(User.clerkId == clerkId))
     user = result.scalar_one_or_none()
     
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with clerkId {user_details_data.clerkId} not found"
+            detail=f"User with clerkId {clerkId} not found"
         )
     
     # Check if user details already exist
     result = await db.execute(
-        select(UserDetails).filter(UserDetails.clerkId == user_details_data.clerkId)
+        select(UserDetails).filter(UserDetails.clerkId == clerkId)
     )
     existing_details = result.scalar_one_or_none()
     
     if existing_details:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"User details for clerkId {user_details_data.clerkId} already exist"
+            detail=f"User details for clerkId {clerkId} already exist"
         )
+    
+    # Upload profile picture to S3 if provided
+    profile_picture_url = None
+    if profilePicture and profilePicture.filename:
+        profile_picture_url = upload_image_to_s3(profilePicture, folder="profiles")
     
     # Create new user details
     new_user_details = UserDetails(
-        clerkId=user_details_data.clerkId,
-        phone=user_details_data.phone,
-        address=user_details_data.address,
-        bio=user_details_data.bio,
-        profilePicture=user_details_data.profilePicture
+        clerkId=clerkId,
+        phone=phone,
+        address=address,
+        bio=bio,
+        profilePicture=profile_picture_url
     )
     
     # Add to database and commit
@@ -58,14 +103,46 @@ async def create_user_details(user_details_data: UserDetailsCreate, db: AsyncSes
     
     return new_user_details
 
-@router.put("/basic/{clerk_id}", response_model=UserDetailsResponse)
+@router.put("/basic/{clerk_id}", response_model=UserDetailsResponse,
+          summary="Update user details with optional profile picture",
+          description="Update basic user details for a user with an optional profile picture upload.",
+          openapi_extra={
+              "requestBody": {
+                  "content": {
+                      "multipart/form-data": {
+                          "schema": {
+                              "type": "object",
+                              "properties": {
+                                  "phone": {"type": "string", "nullable": True},
+                                  "address": {"type": "string", "nullable": True},
+                                  "bio": {"type": "string", "nullable": True},
+                                  "profilePicture": {
+                                      "type": "string", 
+                                      "format": "binary",
+                                      "nullable": True
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          })
 async def update_user_details(
     clerk_id: str, 
-    user_details_data: UserDetailsBase, 
+    phone: Optional[str] = Form(None),
+    address: Optional[str] = Form(None),
+    bio: Optional[str] = Form(None),
+    profilePicture: Optional[UploadFile] = File(None),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Update basic user details for a user.
+    
+    - **clerk_id**: User's Clerk ID (path parameter)
+    - **phone**: Optional phone number
+    - **address**: Optional address
+    - **bio**: Optional user bio
+    - **profilePicture**: Optional profile picture file (image only)
     """
     # Check if user details exist
     result = await db.execute(select(UserDetails).filter(UserDetails.clerkId == clerk_id))
@@ -77,9 +154,18 @@ async def update_user_details(
             detail=f"User details for clerkId {clerk_id} not found"
         )
     
-    # Update fields
-    for field, value in user_details_data.dict(exclude_unset=True).items():
-        setattr(user_details, field, value)
+    # Upload profile picture to S3 if provided
+    if profilePicture and profilePicture.filename:
+        profile_picture_url = upload_image_to_s3(profilePicture, folder="profiles")
+        user_details.profilePicture = profile_picture_url
+    
+    # Update fields if provided
+    if phone is not None:
+        user_details.phone = phone
+    if address is not None:
+        user_details.address = address
+    if bio is not None:
+        user_details.bio = bio
     
     # Commit changes
     await db.commit()
