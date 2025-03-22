@@ -12,7 +12,7 @@ export interface Ticket {
   id: number;
   title: string;
   description: string;
-  status: 'open' | 'pending' | 'resolved';
+  status: 'pending' | 'accepted' | 'rejected' | 'resolved';
   created_by: string;
   urgency: 'low' | 'medium' | 'high';
   created_at: string;

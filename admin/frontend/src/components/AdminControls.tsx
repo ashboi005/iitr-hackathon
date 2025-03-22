@@ -1,14 +1,28 @@
 "use client"
 
 import type { Ticket } from "../services/types"
+import { updateTicketStatus } from "../services/api"
 
 export default function AdminControls({
   pendingTickets,
   onBanUser,
+  onResolve,
+  clerkId
 }: {
   pendingTickets: Ticket[]
   onBanUser: (userId: string) => void
+  onResolve: (ticketId: number) => void
+  clerkId: string
 }) {
+  const handleResolve = async (ticketId: number) => {
+    try {
+      await updateTicketStatus(clerkId, ticketId, 'resolved')
+      onResolve(ticketId)
+    } catch (err) {
+      console.error('Resolution failed:', err)
+    }
+  }
+
   return (
     <div className="bg-[#1e1e1e] rounded-lg shadow-md border border-[#333333] p-6">
       <h2 className="text-xl font-bold mb-6">Pending Tickets</h2>
@@ -25,7 +39,10 @@ export default function AdminControls({
                 <div className="mt-2 text-xs text-gray-400">Created by: {ticket.created_by}</div>
               </div>
               <div className="flex gap-2">
-                <button className="px-3 py-1 bg-[#1a1a1a] text-gray-300 rounded hover:bg-[#252525] border border-[#333333]">
+                <button 
+                  onClick={() => handleResolve(ticket.id)}
+                  className="px-3 py-1 bg-[#1a1a1a] text-gray-300 rounded hover:bg-[#252525] border border-[#333333]"
+                >
                   Resolve
                 </button>
                 <button
@@ -43,4 +60,3 @@ export default function AdminControls({
     </div>
   )
 }
-
