@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Float, Table, ARRAY, Text, JSON
+from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Float, Table, ARRAY, Text, JSON, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -42,6 +42,8 @@ class User(Base):
     employer_requests = relationship("GigRequest", back_populates="employer", foreign_keys="GigRequest.employerClerkId")
     active_gigs_freelancer = relationship("ActiveGig", back_populates="freelancer", foreign_keys="ActiveGig.freelancerClerkId")
     active_gigs_employer = relationship("ActiveGig", back_populates="employer", foreign_keys="ActiveGig.employerClerkId")
+    created_tickets = relationship("Ticket", back_populates="creator")
+    messages = relationship("ChatMessage", back_populates="sender")
     balance = relationship("Balance", back_populates="user", uselist=False)
 
 # UserDetails Model
@@ -79,7 +81,6 @@ class EmployerDetails(Base):
     id = Column(Integer, primary_key=True, index=True)
     clerkId = Column(String, ForeignKey("users.clerkId"), unique=True)
     worksNeeded = Column(ARRAY(String))  # List of works/skills needed
-    averageRating = Column(Float, default=0.0)
     
     # Relationship
     user = relationship("User", back_populates="employer_details")
@@ -157,4 +158,46 @@ class CompanyBalance(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     amount = Column(Float, default=0.0)
-    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow) 
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+# Review Model
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rating = Column(Integer)  # 1-5 stars
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Foreign Keys
+    employer_clerk_id = Column(String, ForeignKey("users.clerkId"))
+    freelancer_clerk_id = Column(String, ForeignKey("users.clerkId"))
+    
+    # Relationships
+    employer = relationship("User", foreign_keys=[employer_clerk_id], backref="reviews_given")
+    freelancer = relationship("User", foreign_keys=[freelancer_clerk_id], backref="reviews_received") 
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True)
+    ticket_id = Column(Integer, ForeignKey('tickets.id'), nullable=False)
+    sender_id = Column(String, ForeignKey('users.clerkId'), nullable=False)
+    message = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    ticket = relationship('Ticket', backref='messages')
+    sender = relationship('User', back_populates='messages')
+
+class Ticket(Base):
+    __tablename__ = "tickets"
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String(100))
+    description = Column(Text)
+    status = Column(String(20), default='open')
+    urgency = Column(String(10), default='medium')
+    created_by = Column(String, ForeignKey('users.clerkId'))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    creator = relationship("User", back_populates="created_tickets")

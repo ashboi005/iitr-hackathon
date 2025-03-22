@@ -39,10 +39,10 @@ const RoleSelection = () => {
     <div>
       <h1>Select Your Role</h1>
       <div>
-        <button onClick={() => handleRoleSelection('employer')} disabled={!isSignedIn}>
+        <button onClick={() => handleRoleSelection('EMPLOYER')} disabled={!isSignedIn}>
           Employer
         </button>
-        <button onClick={() => handleRoleSelection('freelancer')} disabled={!isSignedIn}>
+        <button onClick={() => handleRoleSelection('FREELANCER')} disabled={!isSignedIn}>
           Freelancer
         </button>
       </div>
