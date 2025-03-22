@@ -2,17 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-@keyframes fade-in-up {
-    0% {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  .animate-fade-in-up {
-    animation: fade-in-up 0.6s ease-out;
-  }
+:root {
+  --primary-red: #ff3333;
+  --primary-red-hover: #ff5555;
+  --dark-bg: #121212;
+  --dark-card: #1e1e1e;
+  --dark-border: #333333;
+}
+
+body {
+  background-color: var(--dark-bg);
+  color: #f0f0f0;
+}
+

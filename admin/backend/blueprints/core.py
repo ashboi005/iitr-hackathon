@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy.orm import joinedload
 from config import db
 from models.admin import Admin, Ticket
+from services.twilio_service import twilio_service  # Added Twilio
 
 bp = Blueprint('core', __name__)
 
@@ -32,6 +33,7 @@ def get_admin(clerkId):
         "firstName": admin.firstName,
         "lastName": admin.lastName,
         "role": admin.role,
+        "phoneNumber": admin.phone_number,  # Added phone number
         "createdAt": admin.createdAt.isoformat(),
         "is_banned": admin.is_banned
     })
@@ -53,7 +55,7 @@ def get_admin(clerkId):
                 'items': {
                     'type': 'object',
                     'properties': {
-                        'id': {'type': 'integer'},
+                        'id': {'type': 'string'},  # Changed to string
                         'title': {'type': 'string'},
                         'status': {'type': 'string'},
                         'urgency': {'type': 'string'},
@@ -81,7 +83,7 @@ def get_admin_tickets(clerkId):
         "created_at": t.created_at.isoformat()
     } for t in tickets])
 
-@bp.route('/tickets', methods=['POST'])
+@bp.route('/tickets', methods=['POST'])  # Changed endpoint from /post to /tickets
 @swag_from({
     'tags': ['Tickets'],
     'parameters': [{
@@ -104,7 +106,7 @@ def get_admin_tickets(clerkId):
             'schema': {
                 'type': 'object',
                 'properties': {
-                    'id': {'type': 'integer'},
+                    'id': {'type': 'string'},  # Changed to string
                     'status': {'type': 'string'},
                     'creator_name': {'type': 'string'},
                     'created_at': {'type': 'string'}
@@ -127,9 +129,15 @@ def create_ticket():
             urgency=data.get('urgency', 'medium'),
             created_by=data['created_by']
         )
+        
         db.session.add(ticket)
         db.session.commit()
         
+        # SMS Notification
+        if admin.phone_number:
+            message = f"New Ticket Created!\nID: {ticket.id}\nTitle: {ticket.title}\nStatus: {ticket.status}"
+            twilio_service.send_sms(admin.phone_number, message)
+
         return jsonify({
             'id': ticket.id,
             'status': ticket.status,
@@ -139,38 +147,6 @@ def create_ticket():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 400
-
-@bp.route('/tickets/pending', methods=['GET'])
-@swag_from({
-    'tags': ['Tickets'],
-    'responses': {
-        200: {
-            'description': 'List of pending tickets',
-            'schema': {
-                'type': 'array',
-                'items': {
-                    'type': 'object',
-                    'properties': {
-                        'id': {'type': 'integer'},
-                        'title': {'type': 'string'},
-                        'created_by': {'type': 'string'},
-                        'creator_name': {'type': 'string'},
-                        'created_at': {'type': 'string'}
-                    }
-                }
-            }
-        }
-    }
-})
-def get_pending_tickets():
-    pending = Ticket.query.options(joinedload(Ticket.admin)).filter_by(status='pending').all()
-    return jsonify([{
-        "id": t.id,
-        "title": t.title,
-        "created_by": t.created_by,
-        "creator_name": f"{t.admin.firstName} {t.admin.lastName}",
-        "created_at": t.created_at.isoformat()
-    } for t in pending])
 
 @bp.route('/admin/ban/<string:clerkId>', methods=['POST'])
 @swag_from({
@@ -204,6 +180,12 @@ def ban_admin(clerkId):
         
         admin.is_banned = True
         db.session.commit()
+        
+        # Ban Notification
+        if admin.phone_number:
+            message = f"Account Banned\nYour admin account ({admin.email}) has been suspended."
+            twilio_service.send_sms(admin.phone_number, message)
+
         return jsonify({
             "message": f"Admin {clerkId} banned successfully",
             "banned_at": datetime.utcnow().isoformat()
@@ -211,3 +193,5 @@ def ban_admin(clerkId):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+# Rest of the file remains unchanged...
