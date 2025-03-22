@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,10 +7,170 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  clerkId       String   @id @default(cuid())
-  email     String   @unique
-  firstName String
-  lastName  String
-  createdAt DateTime @default(now())
+model active_gigs {
+  id                                         Int       @id @default(autoincrement())
+  gig_id                                     Int?
+  freelancerClerkId                          String?   @db.VarChar
+  employerClerkId                            String?   @db.VarChar
+  milestone_status                           String[]  @db.VarChar
+  milestone_links                            Json?     @db.Json
+  status                                     String?   @db.VarChar
+  created_at                                 DateTime? @db.Timestamp(6)
+  updated_at                                 DateTime? @db.Timestamp(6)
+  users_active_gigs_employerClerkIdTousers   users?    @relation("active_gigs_employerClerkIdTousers", fields: [employerClerkId], references: [clerkId], onDelete: NoAction, onUpdate: NoAction)
+  users_active_gigs_freelancerClerkIdTousers users?    @relation("active_gigs_freelancerClerkIdTousers", fields: [freelancerClerkId], references: [clerkId], onDelete: NoAction, onUpdate: NoAction)
+  gigs                                       gigs?     @relation(fields: [gig_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([employerClerkId], map: "ix_active_gigs_employerClerkId")
+  @@index([freelancerClerkId], map: "ix_active_gigs_freelancerClerkId")
+  @@index([gig_id], map: "ix_active_gigs_gig_id")
+  @@index([id], map: "ix_active_gigs_id")
+}
+
+model admin {
+  clerkId       String          @id @db.VarChar
+  email         String?         @unique(map: "ix_admin_email") @db.VarChar
+  firstName     String?         @db.VarChar
+  lastName      String?         @db.VarChar
+  createdAt     DateTime?       @db.Timestamp(6)
+  role          String?         @db.VarChar
+  is_banned     Boolean?
+  chat_messages chat_messages[]
+
+  @@index([clerkId], map: "ix_admin_clerkId")
+}
+
+model alembic_version {
+  version_num String @id(map: "alembic_version_pkc") @db.VarChar(32)
+}
+
+model balances {
+  id      Int     @id @default(autoincrement())
+  clerkId String? @unique @db.VarChar
+  amount  Float?
+  users   users?  @relation(fields: [clerkId], references: [clerkId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id], map: "ix_balances_id")
+}
+
+model chat_messages {
+  id        Int       @id @default(autoincrement())
+  ticket_id Int
+  sender_id String    @db.VarChar
+  message   String
+  timestamp DateTime? @db.Timestamp(6)
+  admin     admin     @relation(fields: [sender_id], references: [clerkId], onDelete: NoAction, onUpdate: NoAction)
+  tickets   tickets   @relation(fields: [ticket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_balance {
+  id           Int       @id @default(autoincrement())
+  amount       Float?
+  last_updated DateTime? @db.Timestamp(6)
+
+  @@index([id], map: "ix_company_balance_id")
+}
+
+model employer_details {
+  id            Int      @id @default(autoincrement())
+  clerkId       String?  @unique @db.VarChar
+  worksNeeded   String[] @db.VarChar
+  averageRating Float?
+  users         users?   @relation(fields: [clerkId], references: [clerkId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id], map: "ix_employer_details_id")
+}
+
+model freelancer_details {
+  id             Int      @id @default(autoincrement())
+  clerkId        String?  @unique @db.VarChar
+  occupation     String?  @db.VarChar
+  skills         String[] @db.VarChar
+  averageRating  Float?
+  portfolioLinks String[] @db.VarChar
+  users          users?   @relation(fields: [clerkId], references: [clerkId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id], map: "ix_freelancer_details_id")
+}
+
+model gig_requests {
+  id                                          Int       @id @default(autoincrement())
+  gig_id                                      Int?
+  freelancerClerkId                           String?   @db.VarChar
+  employerClerkId                             String?   @db.VarChar
+  status                                      String?   @db.VarChar
+  created_at                                  DateTime? @db.Timestamp(6)
+  users_gig_requests_employerClerkIdTousers   users?    @relation("gig_requests_employerClerkIdTousers", fields: [employerClerkId], references: [clerkId], onDelete: NoAction, onUpdate: NoAction)
+  users_gig_requests_freelancerClerkIdTousers users?    @relation("gig_requests_freelancerClerkIdTousers", fields: [freelancerClerkId], references: [clerkId], onDelete: NoAction, onUpdate: NoAction)
+  gigs                                        gigs?     @relation(fields: [gig_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([employerClerkId], map: "ix_gig_requests_employerClerkId")
+  @@index([freelancerClerkId], map: "ix_gig_requests_freelancerClerkId")
+  @@index([gig_id], map: "ix_gig_requests_gig_id")
+  @@index([id], map: "ix_gig_requests_id")
+}
+
+model gigs {
+  id                 Int            @id @default(autoincrement())
+  title              String?        @db.VarChar
+  description        String?
+  skills_needed      String[]       @db.VarChar
+  project_deadline   DateTime?      @db.Timestamp(6)
+  milestones         String[]       @db.VarChar
+  milestone_payments Float[]
+  total_payment      Float?
+  status             String?        @db.VarChar
+  created_at         DateTime?      @db.Timestamp(6)
+  employerClerkId    String?        @db.VarChar
+  active_gigs        active_gigs[]
+  gig_requests       gig_requests[]
+  users              users?         @relation(fields: [employerClerkId], references: [clerkId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id], map: "ix_gigs_id")
+  @@index([title], map: "ix_gigs_title")
+}
+
+model tickets {
+  id            Int             @id @default(autoincrement())
+  title         String?         @db.VarChar(100)
+  description   String?
+  status        String?         @db.VarChar(20)
+  urgency       String?         @db.VarChar(10)
+  created_by    String?         @db.VarChar
+  created_at    DateTime?       @db.Timestamp(6)
+  chat_messages chat_messages[]
+  users         users?          @relation(fields: [created_by], references: [clerkId], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model user_details {
+  id             Int     @id @default(autoincrement())
+  clerkId        String? @unique @db.VarChar
+  phone          String? @db.VarChar
+  address        String? @db.VarChar
+  bio            String? @db.VarChar
+  profilePicture String? @db.VarChar
+  users          users?  @relation(fields: [clerkId], references: [clerkId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id], map: "ix_user_details_id")
+}
+
+model users {
+  clerkId                                            String              @id @db.VarChar
+  email                                              String?             @unique(map: "ix_users_email") @db.VarChar
+  firstName                                          String?             @db.VarChar
+  lastName                                           String?             @db.VarChar
+  createdAt                                          DateTime?           @db.Timestamp(6)
+  role                                               String?             @db.VarChar
+  active_gigs_active_gigs_employerClerkIdTousers     active_gigs[]       @relation("active_gigs_employerClerkIdTousers")
+  active_gigs_active_gigs_freelancerClerkIdTousers   active_gigs[]       @relation("active_gigs_freelancerClerkIdTousers")
+  balances                                           balances?
+  employer_details                                   employer_details?
+  freelancer_details                                 freelancer_details?
+  gig_requests_gig_requests_employerClerkIdTousers   gig_requests[]      @relation("gig_requests_employerClerkIdTousers")
+  gig_requests_gig_requests_freelancerClerkIdTousers gig_requests[]      @relation("gig_requests_freelancerClerkIdTousers")
+  gigs                                               gigs[]
+  tickets                                            tickets[]
+  user_details                                       user_details?
+
+  @@index([clerkId], map: "ix_users_clerkId")
 }

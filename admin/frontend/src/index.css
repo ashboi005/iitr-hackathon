@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-red: #ff3333;
+  --primary-red-hover: #ff5555;
+  --dark-bg: #121212;
+  --dark-card: #1e1e1e;
+  --dark-border: #333333;
+}
+
+body {
+  background-color: var(--dark-bg);
+  color: #f0f0f0;
+}
+
