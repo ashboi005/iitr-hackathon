@@ -1,37 +1,32 @@
-// src/pages/api/updateRole.ts
+// src/app/api/updateRole/route.ts
 
-import { getAuth } from '@clerk/nextjs/server';
-import { NextApiRequest, NextApiResponse } from 'next';
+import { auth } from '@clerk/nextjs/server'; // App Router Clerk import
 import { PrismaClient } from '@prisma/client';
-import { createClerkClient } from '@clerk/nextjs/server'; // Correct Next.js server import
+import { NextRequest, NextResponse } from 'next/server';
+import { createClerkClient } from '@clerk/nextjs/server';
 
 const prisma = new PrismaClient();
 
-// Initialize Clerk client for Next.js
 const clerk = createClerkClient({
   secretKey: process.env.CLERK_SECRET_KEY,
 });
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
+export async function POST(req: NextRequest) {
   try {
-    // Get authenticated user ID
-    const { userId } = getAuth(req);
-    
+    const { userId } = await auth(); // Use Clerk's `auth()` in App Router
+
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Validate role
-    const { role } = req.body;
+    const body = await req.json();
+    const { role } = body;
+
     if (!role || !['employer', 'freelancer'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
+      return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 
-    // Update Clerk metadata using Next.js client
+    // Update Clerk metadata
     await clerk.users.updateUser(userId, {
       publicMetadata: { role },
     });
@@ -42,10 +37,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: { role },
     });
 
-    return res.status(200).json({ success: true, updatedUser });
+    return NextResponse.json({ success: true, updatedUser }, { status: 200 });
 
   } catch (error) {
     console.error('Error updating role:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
