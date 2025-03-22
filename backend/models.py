@@ -42,6 +42,8 @@ class User(Base):
     employer_requests = relationship("GigRequest", back_populates="employer", foreign_keys="GigRequest.employerClerkId")
     active_gigs_freelancer = relationship("ActiveGig", back_populates="freelancer", foreign_keys="ActiveGig.freelancerClerkId")
     active_gigs_employer = relationship("ActiveGig", back_populates="employer", foreign_keys="ActiveGig.employerClerkId")
+    created_tickets = relationship("Ticket", back_populates="creator")
+    messages = relationship("ChatMessage", back_populates="sender")
     balance = relationship("Balance", back_populates="user", uselist=False)
 
 # UserDetails Model
@@ -180,37 +182,12 @@ class ChatMessage(Base):
 
     id = Column(Integer, primary_key=True)
     ticket_id = Column(Integer, ForeignKey('tickets.id'), nullable=False)
-    sender_id = Column(String, ForeignKey('admin.clerkId'), nullable=False)
+    sender_id = Column(String, ForeignKey('users.clerkId'), nullable=False)
     message = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     ticket = relationship('Ticket', backref='messages')
-    sender = relationship('Admin', backref='messages')
-
-class Admin(Base):
-    __tablename__ = "admin"  # Different from actual table name "users"
-    
-    clerkId = Column(String, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    firstName = Column(String)
-    lastName = Column(String)
-    role = Column(String)  # ADMIN, FREELANCER, or EMPLOYER
-    is_banned = Column(Boolean, default=False)
-    createdAt = Column(DateTime, default=datetime.utcnow)
-    
-    admin_details = relationship("AdminDetails", uselist=False, back_populates="admin")
-
-class AdminDetails(Base):
-    __tablename__ = "admin_details"  # Different from actual table name "user_details"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    clerkId = Column(String, ForeignKey('admin.clerkId'))
-    phone = Column(String)
-    address = Column(String)
-    bio = Column(String)
-    profilePicture = Column(String)
-    
-    admin = relationship("Admin", back_populates="admin_details")
+    sender = relationship('User', backref='messages')
 
 class Ticket(Base):
     __tablename__ = "tickets"
@@ -220,5 +197,7 @@ class Ticket(Base):
     description = Column(Text)
     status = Column(String(20), default='open')
     urgency = Column(String(10), default='medium')
-    created_by = Column(String, ForeignKey('admin.clerkId'))
+    created_by = Column(String, ForeignKey('users.clerkId'))
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    creator = relationship("User", backref="created_tickets")
