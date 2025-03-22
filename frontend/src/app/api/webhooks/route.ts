@@ -1,8 +1,6 @@
 import { Webhook } from 'svix'
-import { PrismaClient } from '@prisma/client'
 import { WebhookEvent } from '@clerk/nextjs/server'
-
-const prisma = new PrismaClient()
+import { prisma } from "@/lib/db";
 
 export async function POST(req: Request) {
   const SIGNING_SECRET = process.env.SIGNING_SECRET
@@ -44,44 +42,74 @@ export async function POST(req: Request) {
   }
 
   // Check event type
-  if (evt.type !== 'user.created') {
-    return new Response('Event type not supported', { status: 400 })
-  }
-
-  // Extract and assert the type of evt.data
-  const userData = evt.data as unknown as {
+  const eventType = evt.type;
+  const data = evt.data as unknown as {
     id: string
     email_addresses: { email_address: string }[]
     first_name: string | null
     last_name: string | null
   }
 
-  const {id: clerk_id, email_addresses, first_name, last_name } = userData
-  const email = email_addresses[0]?.email_address // Safe check for email_addresses
+  if (eventType === "user.created" || eventType === "user.updated") {
+    const { id, email_addresses, first_name, last_name } = data;
+    const email = email_addresses[0]?.email_address;
 
-  // If there's no email, return an error
-  if (!email) {
-    return new Response('Email address is missing', { status: 400 })
+    try {
+      const user = await createUser(
+        id,
+        email,
+        first_name || "",
+        last_name || ""
+      );
+      return new Response(JSON.stringify({ user }), { status: 200 });
+    } catch (error) {
+      console.error("Error processing webhook:", error);
+      return new Response(
+        JSON.stringify({ error: "Error processing webhook" }),
+        { status: 500 }
+      );
+    }
   }
 
-  // Insert data into the database (Prisma)
+  return new Response('Event type not supported', { status: 400 })
+}
+
+async function createUser(id: string, email: string, firstName: string, lastName: string) {
   try {
-    const user = await prisma.users.create({
-      data: {
-        clerkId: clerk_id,
-        email: email || '', // Add fallback for email
-        firstName: first_name ?? '',
-        lastName: last_name ?? '',
-        role: '',
-        createdAt: new Date(), // Add timestamp if needed
-      },
+    // First check if user already exists
+    const existingUser = await prisma.users.findUnique({
+      where: {
+        clerkId: id
+      }
     });
-    console.log('User successfully saved:', user)
-  } catch (error) {
-    console.error('Error saving user:', error)
-    return new Response('Error saving user', { status: 500 })
-  }
 
-  // Respond back to acknowledge that the webhook was received
-  return new Response('Webhook received', { status: 200 })
+    if (existingUser) {
+      // Update the existing user instead of creating a new one
+      return await prisma.users.update({
+        where: {
+          clerkId: id
+        },
+        data: {
+          email,
+          firstName,
+          lastName,
+          // Add any other fields you want to update
+        }
+      });
+    }
+
+    // If user doesn't exist, create a new one
+    return await prisma.users.create({
+      data: {
+        clerkId: id,
+        email,
+        firstName,
+        lastName,
+        role: "" // Set default role or however you want to handle roles
+      }
+    });
+  } catch (error) {
+    console.error("Error in createUser:", error);
+    throw error;
+  }
 }

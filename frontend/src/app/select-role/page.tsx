@@ -1,30 +1,37 @@
+'use client';
 import { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 
 const RoleSelection = () => {
   const { user, isSignedIn } = useUser();
   const [role, setRole] = useState<string | null>(null);
+  const router = useRouter(); // ✅ useRouter instead of redirect
 
-  const handleRoleSelection = async () => {
-    if (!role) {
-      alert("Please select a role.");
-      return;
-    }
+  const handleRoleSelection = async (selectedRole: string) => {
+    setRole(selectedRole);
 
-    // Make API request to backend to update the user's role
-    const response = await fetch('/api/updateRole', {
-      method: 'POST',
-      body: JSON.stringify({ role }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    try {
+      // ✅ Update user's role via API
+      const response = await fetch('/api/updateRole', {
+        method: 'POST',
+        body: JSON.stringify({ role: selectedRole }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    const data = await response.json();
-    if (data.success) {
-      alert("Role updated successfully.");
-    } else {
-      alert("Error updating role.");
+      const data = await response.json();
+
+      if (data.success) {
+        // ✅ Only navigate after the role is updated
+        router.push('/redirect');
+      } else {
+        alert("Error updating role.");
+      }
+    } catch (error) {
+      console.error("Error updating role:", error);
+      alert("Something went wrong.");
     }
   };
 
@@ -32,29 +39,13 @@ const RoleSelection = () => {
     <div>
       <h1>Select Your Role</h1>
       <div>
-        <label>
-          <input
-            type="radio"
-            value="employer"
-            checked={role === 'employer'}
-            onChange={() => setRole('employer')}
-          />
+        <button onClick={() => handleRoleSelection('employer')} disabled={!isSignedIn}>
           Employer
-        </label>
-        <label>
-          <input
-            type="radio"
-            value="freelancer"
-            checked={role === 'freelancer'}
-            onChange={() => setRole('freelancer')}
-          />
+        </button>
+        <button onClick={() => handleRoleSelection('freelancer')} disabled={!isSignedIn}>
           Freelancer
-        </label>
+        </button>
       </div>
-
-      <button onClick={handleRoleSelection} disabled={!isSignedIn || !role}>
-        Set Role
-      </button>
     </div>
   );
 };
