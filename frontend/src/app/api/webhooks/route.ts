@@ -1,6 +1,6 @@
 import { Webhook } from 'svix'
-import { WebhookEvent } from '@clerk/nextjs/server'
 import { PrismaClient } from '@prisma/client'
+import { WebhookEvent } from '@clerk/nextjs/server'
 
 const prisma = new PrismaClient()
 
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       'svix-id': svixId,
       'svix-timestamp': svixTimestamp,
       'svix-signature': svixSignature,
-    }) as WebhookEvent
+    }) as WebhookEvent // Cast the result to WebhookEvent
   } catch (err) {
     console.error('Error verifying webhook:', err)
     return new Response('Verification error', { status: 400 })
@@ -48,9 +48,16 @@ export async function POST(req: Request) {
     return new Response('Event type not supported', { status: 400 })
   }
 
-  // Extract user data from the webhook event
-  const { id, email_addresses, first_name, last_name } = evt.data
-  const email = email_addresses && email_addresses[0]?.email_address // Safe check for email_addresses
+  // Extract and assert the type of evt.data
+  const userData = evt.data as unknown as {
+    id: string
+    email_addresses: { email_address: string }[]
+    first_name: string | null
+    last_name: string | null
+  }
+
+  const {id: clerk_id, email_addresses, first_name, last_name } = userData
+  const email = email_addresses[0]?.email_address // Safe check for email_addresses
 
   // If there's no email, return an error
   if (!email) {
@@ -59,14 +66,16 @@ export async function POST(req: Request) {
 
   // Insert data into the database (Prisma)
   try {
-    const user = await prisma.user.create({
+    const user = await prisma.users.create({
       data: {
-        id,
-        email,
-        firstName: first_name ?? '',  // Use default empty string if null or undefined
-        lastName: last_name ?? '',    // Use default empty string if null or undefined
+        clerkId: clerk_id,
+        email: email || '', // Add fallback for email
+        firstName: first_name ?? '',
+        lastName: last_name ?? '',
+        role: '',
+        createdAt: new Date(), // Add timestamp if needed
       },
-    })
+    });
     console.log('User successfully saved:', user)
   } catch (error) {
     console.error('Error saving user:', error)

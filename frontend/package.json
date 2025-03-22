@@ -1,28 +1,29 @@
 {
-  "name": "clerk-customdb",
+  "name": "frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.12.6",
+    "@clerk/backend": "^1.25.5",
+    "@clerk/nextjs": "^6.12.8",
     "@prisma/client": "^6.5.0",
-    "next": "14.2.23",
+    "next": "15.2.3",
     "prisma": "^6.5.0",
-    "react": "^18",
-    "react-dom": "^18",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "svix": "^1.62.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4",
     "typescript": "^5"
   }
 }
