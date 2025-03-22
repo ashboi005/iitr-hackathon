@@ -31,10 +31,6 @@ async def send_sms(to_number=None, message=None):
     Returns:
         bool: True if the message was sent successfully, False otherwise.
     """
-    if not client:
-        print("Twilio client not initialized. Check your environment variables.")
-        return False
-    
     if not message:
         print("No message provided")
         return False
@@ -46,18 +42,26 @@ async def send_sms(to_number=None, message=None):
         print("No recipient number provided and no demo number configured.")
         return False
     
-    try:
-        # Send the message
-        message = client.messages.create(
-            body=message,
-            from_=TWILIO_PHONE_NUMBER,
-            to=recipient
-        )
-        print(f"SMS sent successfully. SID: {message.sid}")
-        return True
-    except Exception as e:
-        print(f"Failed to send SMS: {str(e)}")
-        return False
+    # Instead of actually sending SMS, just print to console
+    print("\n-----SIMULATED SMS-----")
+    print(f"TO: {recipient}")
+    print(f"MESSAGE: {message}")
+    print("-----END SMS-----\n")
+    return True
+    
+    # Original code commented out:
+    # try:
+    #     # Send the message
+    #     message = client.messages.create(
+    #         body=message,
+    #         from_=TWILIO_PHONE_NUMBER,
+    #         to=recipient
+    #     )
+    #     print(f"SMS sent successfully. SID: {message.sid}")
+    #     return True
+    # except Exception as e:
+    #     print(f"Failed to send SMS: {str(e)}")
+    #     return False
 
 # Notification functions for gig workflows
 

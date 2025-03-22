@@ -221,4 +221,20 @@ class MilestoneApproveResponse(BaseModel):
     milestone_links: Dict[str, List[str]]
     milestone_status: List[str]
     payment_amount: float
-    status: str 
+    status: str
+
+# Review Schemas
+class ReviewCreate(BaseModel):
+    rating: int
+    employer_clerk_id: str
+    freelancer_clerk_id: str
+
+class ReviewResponse(BaseModel):
+    id: int
+    rating: int
+    employer_clerk_id: str
+    freelancer_clerk_id: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True 
