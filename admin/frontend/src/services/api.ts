@@ -12,13 +12,13 @@ export const fetchUserData = async (clerkId: string): Promise<User> => {
 };
 
 export const fetchTickets = async (clerkId: string): Promise<Ticket[]> => {
-  const response = await fetch(`${API_BASE}/tickets/user/${clerkId}`);
+  const response = await fetch(`${API_BASE}/admin/${clerkId}`);
   if (!response.ok) throw new Error('Failed to fetch tickets');
   return response.json();
 };
 
 export const fetchPendingTickets = async (): Promise<Ticket[]> => {
-  const response = await fetch(`${API_BASE}/tickets/pending}`);
+  const response = await fetch(`${API_BASE}/tickets/pending`);
   if (!response.ok) throw new Error('Failed to fetch pending tickets');
   return response.json();
 };
@@ -42,13 +42,13 @@ export const banUser = async (clerkId: string): Promise<void> => {
 
 export const chatApi = {
   getMessages: async (ticketId: number): Promise<ChatMessage[]> => {
-    const response = await fetch(`${API_BASE}/chat/${ticketId}/messages}`);
+    const response = await fetch(`${API_BASE}/chat/${ticketId}/messages`);
     if (!response.ok) throw new Error('Failed to fetch messages');
     return response.json();
   },
   
   sendMessage: async (ticketId: number, data: { sender_id: string, message: string }): Promise<ChatMessage> => {
-    const response = await fetch(`${API_BASE}/chat/${ticketId}/messages}`, {
+    const response = await fetch(`${API_BASE}/chat/${ticketId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
