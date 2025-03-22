@@ -12,10 +12,14 @@ from mangum import Mangum
 load_dotenv()
 
 app = FastAPI(
-    root_path="/Prod",
     title="Workly API",
     description="Backend API for the Workly platform",
-    version="0.1.0"
+    version="0.1.0",
+    # Remove root_path for local development
+    # root_path="/Prod",
+    openapi_url="/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 app.add_middleware(

@@ -187,7 +187,7 @@ class ChatMessage(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     ticket = relationship('Ticket', backref='messages')
-    sender = relationship('User', backref='messages')
+    sender = relationship('User', back_populates='messages')
 
 class Ticket(Base):
     __tablename__ = "tickets"
@@ -200,4 +200,4 @@ class Ticket(Base):
     created_by = Column(String, ForeignKey('users.clerkId'))
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    creator = relationship("User", backref="created_tickets")
+    creator = relationship("User", back_populates="created_tickets")
