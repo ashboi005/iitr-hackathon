@@ -142,7 +142,7 @@ export default function GigsPage() {
             name={gig.title}
             className="col-span-1"
             description={gig.description}
-            href={`/freelancer/gigs/${gig.id}`}
+            href={`/gig/${gig.id}`}
             cta="View Details"
             Icon={Briefcase}
             background={
