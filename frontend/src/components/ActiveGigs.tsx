@@ -7,6 +7,14 @@ async function fetchActiveGigs(clerkId: string) {
   return res.json();
 }
 
+// Define interface for gig
+interface Gig {
+  gig_id: number;
+  employerClerkId: string;
+  milestone_status: string[];
+  status: string;
+}
+
 export default async function ActiveGigs() {
   // Replace with actual clerk_id from your auth provider
   const clerkId = "user_123";
@@ -24,13 +32,13 @@ export default async function ActiveGigs() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {gigs.map((gig) => (
+        {gigs.map((gig: Gig) => (
           <TableRow key={gig.gig_id}>
             <TableCell>{gig.gig_id}</TableCell>
             <TableCell>{gig.employerClerkId}</TableCell>
             <TableCell>
               <div className="flex gap-1">
-                {gig.milestone_status.map((status, index) => (
+                {gig.milestone_status.map((status: string, index: number) => (
                   <Badge key={index} variant="outline">{status}</Badge>
                 ))}
               </div>
