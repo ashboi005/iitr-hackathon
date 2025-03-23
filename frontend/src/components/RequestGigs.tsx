@@ -1,16 +1,25 @@
+"use client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
-async function fetchActiveGigs(clerkId: string) {
-  const res = await fetch(`/api/gigs/active/freelancer/${clerkId}`);
+async function fetchRequestGigs(clerkId: string) {
+  const res = await fetch(`/api/gigs/requests/freelancer/${clerkId}`);
   return res.json();
 }
 
-export default async function ActiveGigs() {
+// Define interface for gig
+interface Gig {
+  gig_id: number;
+  employerClerkId: string;
+  milestone_status: string[];
+  status: string;
+}
+
+export default async function RequestGigs() {
   // Replace with actual clerk_id from your auth provider
   const clerkId = "user_123";
-  const gigs = await fetchActiveGigs(clerkId);
+  const gigs = await fetchRequestGigs(clerkId);
 
   return (
     <Table>
@@ -24,13 +33,13 @@ export default async function ActiveGigs() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {gigs.map((gig) => (
+        {gigs.map((gig: Gig) => (
           <TableRow key={gig.gig_id}>
             <TableCell>{gig.gig_id}</TableCell>
             <TableCell>{gig.employerClerkId}</TableCell>
             <TableCell>
               <div className="flex gap-1">
-                {gig.milestone_status.map((status, index) => (
+                {gig.milestone_status.map((status: string, index: number) => (
                   <Badge key={index} variant="outline">{status}</Badge>
                 ))}
               </div>

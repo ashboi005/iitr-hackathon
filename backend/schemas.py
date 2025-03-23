@@ -61,7 +61,6 @@ class EmployerDetailsCreate(EmployerDetailsBase):
 class EmployerDetailsResponse(EmployerDetailsBase):
     id: int
     clerkId: str
-    averageRating: float
 
     class Config:
         from_attributes = True
@@ -103,6 +102,7 @@ class GigRequestBase(BaseModel):
 class GigRequestCreate(BaseModel):
     gig_id: int
     freelancerClerkId: str
+    freelancer_wallet_address: str
 
 class GigRequestResponse(GigRequestBase):
     id: int

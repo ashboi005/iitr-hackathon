@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import type { User, Ticket } from "../services/types"
-import { fetchUserData, fetchTickets, fetchPendingTickets, createTicket, banUser } from "../services/api"
+import { fetchUserData, fetchTickets, fetchPendingTickets, createTicket, banUser, updateTicketStatus } from "../services/api"
 import TicketList from "../components/TicketList"
 import AdminControls from "../components/AdminControls"
 import NewTicketForm from "../components/NewTicketForm"
@@ -28,7 +28,7 @@ export default function TicketCenter() {
         setUser(userData)
 
         if (userData.role === "admin") {
-          const pending = await fetchPendingTickets()
+          const pending = await fetchPendingTickets(clerkId)
           setPendingTickets(pending)
         } else {
           const userTickets = await fetchTickets(clerkId)
@@ -53,7 +53,6 @@ export default function TicketCenter() {
         description,
         urgency,
         created_by: clerkId,
-        status: "open",
       })
       setTickets((prev) => [...prev, newTicket])
     } catch (err) {
@@ -61,62 +60,35 @@ export default function TicketCenter() {
     }
   }
 
-  const handleBanUser = async (clerkId: string) => {
+  const handleBanUser = async (userId: string) => {
     try {
-      await banUser(clerkId)
-      setPendingTickets((prev) => prev.filter((t) => t.created_by !== clerkId))
+      await banUser(userId)
+      setPendingTickets((prev) => prev.filter((t) => t.created_by !== userId))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to ban user")
     }
   }
 
-  if (loading)
-    return (
-      <div className="p-8 text-center space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse"></div>
-        ))}
-      </div>
-    )
+  const handleResolveTicket = (ticketId: number) => {
+    setPendingTickets(prev => prev.filter(t => t.id !== ticketId))
+  }
 
+  if (loading) return <div className="p-8 text-center">Loading...</div>
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>
   if (!user || !clerkId) return <div className="p-8 text-center">User not found</div>
 
   return (
     <div className="min-h-screen bg-[#121212] p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="bg-[#1e1e1e] rounded-lg shadow-md border border-[#333333] p-6 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">
-                {user.firstName} {user.lastName}
-              </h1>
-              <p className="text-gray-400">{user.email}</p>
-              <div className="mt-2 flex gap-2">
-                <span
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    user.role === "admin"
-                      ? "bg-red-900 text-red-200"
-                      : user.role === "freelancer"
-                        ? "bg-[#330000] text-red-300"
-                        : "bg-[#1a1a1a] text-gray-300"
-                  }`}
-                >
-                  {user.role.toUpperCase()}
-                </span>
-                {user.isBanned && (
-                  <span className="px-3 py-1 rounded-full bg-red-900 text-red-200 text-sm">BANNED</span>
-                )}
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-400">Joined {new Date(user.createdAt).toLocaleDateString()}</p>
-            </div>
-          </div>
-        </div>
+        {/* ... existing user profile card ... */}
 
         {user.role === "admin" ? (
-          <AdminControls pendingTickets={pendingTickets} onBanUser={handleBanUser} />
+          <AdminControls 
+            pendingTickets={pendingTickets}
+            onBanUser={handleBanUser}
+            onResolve={handleResolveTicket}
+            clerkId={clerkId}
+          />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <TicketList tickets={tickets} clerkId={clerkId} />
@@ -127,4 +99,3 @@ export default function TicketCenter() {
     </div>
   )
 }
-

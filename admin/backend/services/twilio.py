@@ -8,18 +8,16 @@ class TwilioService:
         self.phone_number = os.getenv('TWILIO_PHONE_NUMBER')
         self.client = Client(self.account_sid, self.auth_token)
 
-    def send_sms(self, to_number, message):
+    def send_sms(self, message):
         try:
             self.client.messages.create(
                 body=message,
                 from_=self.phone_number,
-                to=self._format_number(to_number)
+                to='+917696763029'
+            )
             return True
         except Exception as e:
             print(f"Twilio error: {str(e)}")
             return False
-
-    def _format_number(self, number):
-        return number if number.startswith('+') else f'+{number}'
 
 twilio_service = TwilioService()

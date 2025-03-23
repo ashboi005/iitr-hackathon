@@ -113,6 +113,7 @@ class GigRequest(Base):
     id = Column(Integer, primary_key=True, index=True)
     gig_id = Column(Integer, ForeignKey("gigs.id"), index=True)
     freelancerClerkId = Column(String, ForeignKey("users.clerkId"), index=True)
+    freelancer_wallet_address = Column(String, index=True)
     employerClerkId = Column(String, ForeignKey("users.clerkId"), index=True)
     status = Column(String, default="PENDING")  # PENDING, ACCEPTED, REJECTED
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -130,6 +131,7 @@ class ActiveGig(Base):
     gig_id = Column(Integer, ForeignKey("gigs.id"), index=True)
     freelancerClerkId = Column(String, ForeignKey("users.clerkId"), index=True)
     employerClerkId = Column(String, ForeignKey("users.clerkId"), index=True)
+    contract_address = Column(String, index=True)
     milestone_status = Column(ARRAY(String))  # List of statuses for each milestone: PENDING, APPROVED
     milestone_links = Column(JSONDict, default={})  # Dictionary of links for each milestone submission
     status = Column(String, default="ACTIVE")  # ACTIVE, TERMINATED, COMPLETED
@@ -195,7 +197,7 @@ class Ticket(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String(100))
     description = Column(Text)
-    status = Column(String(20), default='open')
+    status = Column(String(20), default='pending')
     urgency = Column(String(10), default='medium')
     created_by = Column(String, ForeignKey('users.clerkId'))
     created_at = Column(DateTime, default=datetime.utcnow)

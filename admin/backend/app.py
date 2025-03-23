@@ -1,45 +1,76 @@
+# app.py
 from flask import Flask, jsonify
-from flasgger import Swagger
-from dotenv import load_dotenv
-from config import db, Config
-from blueprints.core import bp
-from models.admin import Admin, Ticket
-from blueprints.chat import chat_bp
 from flask_cors import CORS
+from flasgger import Swagger
+from models import db
+from blueprints.admin import admin_bp
+from blueprints.chat import chat_bp
+from blueprints.tickets import ticket_bp
+import os
 
-load_dotenv()
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-def create_app():
-    app = Flask(__name__)
-    CORS(app, resources={r"/*": {"origins": "*"}})
-    app.config.from_object(Config)
-    
-    db.init_app(app)
-    Swagger(app)
-    
-    with app.app_context():
-        db.create_all()
-    
-    app.register_blueprint(bp, url_prefix='/ticket')
-    app.register_blueprint(chat_bp, url_prefix='/chat')
-    
-    @app.route('/')
-    def health_check():
-        return jsonify({
-            'status': 'healthy',
-            'database': app.config['SQLALCHEMY_DATABASE_URI'],
-            'tables': ['users', 'tickets']
-        })
+# Configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    @app.errorhandler(404)
-    def not_found(error):
-        return jsonify({
-            "error": "Resource not found",
-            "status": 404
-        }), 404
-    
-    return app
+# Swagger configuration
+app.config['SWAGGER'] = {
+    'title': 'Workly API',
+    'uiversion': 3,
+    'openapi': '3.0.3',
+    'specs_route': '/apidocs/'
+}
+
+# Initialize extensions
+db.init_app(app)
+
+# Configure Swagger
+Swagger(app, template={
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Workly API Documentation",
+        "description": "API for Workly Platform - Ticket Management System",
+        "version": "1.0.0",
+        "contact": {
+            "name": "Workly Support",
+            "email": "support@workly.com"
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    }
+})
+
+# Register blueprints
+app.register_blueprint(admin_bp)
+app.register_blueprint(chat_bp)
+app.register_blueprint(ticket_bp)
+
+@app.route('/')
+def health_check():
+    """Application health check endpoint
+    ---
+    get:
+      tags:
+        - Health
+      responses:
+        200:
+          description: Service is healthy
+          content:
+            application/json:
+              example: {"status": "healthy"}
+    """
+    return jsonify({"status": "healthy"})
 
 if __name__ == '__main__':
-    app = create_app()
-    app.run(port=5000)
+    with app.app_context():
+    
+        app.run(host='0.0.0.0', port=5000, debug=True)

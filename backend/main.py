@@ -16,7 +16,7 @@ app = FastAPI(
     description="Backend API for the Workly platform",
     version="0.1.0",
     # Remove root_path for local development
-    # root_path="/Prod",
+    root_path="/Prod",
     openapi_url="/openapi.json",
     docs_url="/docs",
     redoc_url="/redoc"
