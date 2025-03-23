@@ -3,6 +3,7 @@ import { FreelancerProfileDialog } from '@/components/FreelancerProfile';
 import LoadingScreen from '@/components/LoadingScreen';
 import { BentoGrid, BentoCard } from "@/components/ui/bento-grid";
 import { cn } from "@/lib/utils";
+import { useUser } from '@clerk/nextjs';
 import { 
   User, 
   Briefcase, 
@@ -18,6 +19,7 @@ import {
   Link2
 } from "lucide-react";
 import { useState, useEffect } from 'react';
+
 
 interface UserDetails {
   phone: string;
@@ -38,7 +40,7 @@ interface FreelancerDetails {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
-const CLERK_ID = process.env.NEXT_PUBLIC_FREELANCER_CLERK_ID;
+
 
 const ProfilePage: React.FC = () => {
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
@@ -46,6 +48,8 @@ const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(false);
+  const user = useUser();
+  const CLERK_ID =user.user?.id ;
 
   const fetchData = async () => {
     // const ngrokBypassHeaders = { 'ngrok-skip-browser-warning': 'true' };

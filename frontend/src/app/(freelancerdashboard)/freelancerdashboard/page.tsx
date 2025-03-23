@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 interface UserDetails {
   phone: string;
@@ -90,80 +90,43 @@ export default function FreelancerDashboard() {
     "Blender",
     "Three.js"
   ];
-const CLERK_ID = user.user?.id;
-  useEffect(() => {
-    const fetchData = async () => {
-     
-      try {
-        if (!API_BASE || !CLERK_ID) throw new Error('Missing environment configuration');
-
-        const userRes = await fetch(`${API_BASE}/user-details/basic/${CLERK_ID}`, {
-          });
-        const userData: UserDetails = await userRes.json();
-        setUserDetails(userData);
-
-        const freelancerRes = await fetch(`${API_BASE}/user-details/freelancer/${CLERK_ID}`, {
-         
-        });
-        const freelancerData: FreelancerDetails = await freelancerRes.json();
-        setFreelancerDetails(freelancerData);
-
-        const gigsRes = await fetch(`${API_BASE}/gigs/active/freelancer/${CLERK_ID}`, {
-         
-        });
-        const gigsData: ActiveGig[] = await gigsRes.json();
-        setActiveGigs(gigsData);
-
-        setLoading(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
+// const CLERK_ID = user.user?.id;
+const CLERK_ID = "string";
+useEffect(() => {
   const fetchData = async () => {
     try {
       if (!API_BASE || !CLERK_ID) throw new Error('Missing environment configuration');
-  
-      // Existing fetches
+
       const [userRes, freelancerRes, gigsRes, balanceRes] = await Promise.all([
         fetch(`${API_BASE}/user-details/basic/${CLERK_ID}`),
         fetch(`${API_BASE}/user-details/freelancer/${CLERK_ID}`),
         fetch(`${API_BASE}/gigs/active/freelancer/${CLERK_ID}`),
         fetch(`${API_BASE}/balance/user/${CLERK_ID}`)
       ]);
-  
-      // Handle CORS errors
+
       if (!balanceRes.ok) throw new Error(`HTTP error! status: ${balanceRes.status}`);
-      
-      const balanceData: BalanceData = await balanceRes.json();
-      setBalance(balanceData.amount);
-  
-      // Rest of your existing data processing
-      const userData: UserDetails = await userRes.json();
+
+      const [userData, freelancerData, gigsData, balanceData] = await Promise.all([
+        userRes.json(),
+        freelancerRes.json(),
+        gigsRes.json(),
+        balanceRes.json()
+      ]);
+
       setUserDetails(userData);
-  
-      const freelancerData: FreelancerDetails = await freelancerRes.json();
       setFreelancerDetails(freelancerData);
-  
-      const gigsData: ActiveGig[] = await gigsRes.json();
       setActiveGigs(gigsData);
-  
+      setBalance(balanceData.amount);
       setLoading(false);
     } catch (err) {
-      // Enhanced error handling for CORS
-      if (err instanceof TypeError) {
-        setError('Network error - check API CORS configuration');
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Unknown error occurred');
-      }
+      setError(err instanceof Error ? err.message : 'Unknown error');
       setLoading(false);
     }
   };
+
+  fetchData();
+}, []);
+  
   if (loading) {
     return (
       <div className="p-4 md:p-8 max-w-7xl mx-auto">

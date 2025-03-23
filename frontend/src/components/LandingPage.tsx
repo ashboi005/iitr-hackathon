@@ -60,7 +60,7 @@ export default function LandingPage() {
             Secure freelance collaborations powered by blockchain smart contracts
           </motion.p>
           <Button 
-      onClick={() => router.push('/select-role')}
+      onClick={() => router.push('/sign-in')}
       className="mt-4"
     >
       Getting Started
