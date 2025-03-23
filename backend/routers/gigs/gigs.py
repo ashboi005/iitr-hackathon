@@ -211,7 +211,8 @@ async def create_gig_request(request_data: GigRequestCreate, db: AsyncSession = 
         select(GigRequest).filter(
             and_(
                 GigRequest.gig_id == request_data.gig_id,
-                GigRequest.freelancerClerkId == request_data.freelancerClerkId
+                GigRequest.freelancerClerkId == request_data.freelancerClerkId,
+                GigRequest.freelancer_wallet_address == request_data.freelancer_wallet_address
             )
         )
     )
@@ -227,6 +228,7 @@ async def create_gig_request(request_data: GigRequestCreate, db: AsyncSession = 
     new_request = GigRequest(
         gig_id=request_data.gig_id,
         freelancerClerkId=request_data.freelancerClerkId,
+        freelancer_wallet_address=request_data.freelancer_wallet_address,
         employerClerkId=gig.employerClerkId
     )
     
@@ -388,6 +390,7 @@ async def get_freelancer_requests(clerk_id: str, db: AsyncSession = Depends(get_
 async def update_gig_request(
     request_id: int, 
     request_status: str,
+    contract_address: str,
     payment_verified: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
@@ -474,6 +477,7 @@ async def update_gig_request(
             gig_id=request.gig_id,
             freelancerClerkId=request.freelancerClerkId,
             employerClerkId=request.employerClerkId,
+            contract_address=contract_address,
             milestone_status=["PENDING"] * len(gig.milestones),
             milestone_links={}
         )
