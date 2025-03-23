@@ -37,7 +37,6 @@ interface BalanceData {
   clerkId: string;
 }
 
-
 interface ActiveGig {
   gig_id: number;
   freelancerClerkId: string;
@@ -90,88 +89,52 @@ export default function FreelancerDashboard() {
     "Blender",
     "Three.js"
   ];
-const CLERK_ID = user.user?.id;
+  // const CLERK_ID = user.user?.id;
+  const CLERK_ID = "string";
+
   useEffect(() => {
     const fetchData = async () => {
-     
       try {
         if (!API_BASE || !CLERK_ID) throw new Error('Missing environment configuration');
 
-        const userRes = await fetch(`${API_BASE}/user-details/basic/${CLERK_ID}`, {
-          });
-        const userData: UserDetails = await userRes.json();
+        const [userRes, freelancerRes, gigsRes, balanceRes] = await Promise.all([
+          fetch(`${API_BASE}/user-details/basic/${CLERK_ID}`),
+          fetch(`${API_BASE}/user-details/freelancer/${CLERK_ID}`),
+          fetch(`${API_BASE}/gigs/active/freelancer/${CLERK_ID}`),
+          fetch(`${API_BASE}/balance/user/${CLERK_ID}`)
+        ]);
+
+        if (!balanceRes.ok) throw new Error(`HTTP error! status: ${balanceRes.status}`);
+
+        const [userData, freelancerData, gigsData, balanceData] = await Promise.all([
+          userRes.json(),
+          freelancerRes.json(),
+          gigsRes.json(),
+          balanceRes.json()
+        ]);
+
         setUserDetails(userData);
-
-        const freelancerRes = await fetch(`${API_BASE}/user-details/freelancer/${CLERK_ID}`, {
-         
-        });
-        const freelancerData: FreelancerDetails = await freelancerRes.json();
         setFreelancerDetails(freelancerData);
-
-        const gigsRes = await fetch(`${API_BASE}/gigs/active/freelancer/${CLERK_ID}`, {
-         
-        });
-        const gigsData: ActiveGig[] = await gigsRes.json();
         setActiveGigs(gigsData);
-
+        setBalance(balanceData.amount);
         setLoading(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, []);
-  const fetchData = async () => {
-    try {
-      if (!API_BASE || !CLERK_ID) throw new Error('Missing environment configuration');
-  
-      // Existing fetches
-      const [userRes, freelancerRes, gigsRes, balanceRes] = await Promise.all([
-        fetch(`${API_BASE}/user-details/basic/${CLERK_ID}`),
-        fetch(`${API_BASE}/user-details/freelancer/${CLERK_ID}`),
-        fetch(`${API_BASE}/gigs/active/freelancer/${CLERK_ID}`),
-        fetch(`${API_BASE}/balance/user/${CLERK_ID}`)
-      ]);
-  
-      // Handle CORS errors
-      if (!balanceRes.ok) throw new Error(`HTTP error! status: ${balanceRes.status}`);
-      
-      const balanceData: BalanceData = await balanceRes.json();
-      setBalance(balanceData.amount);
-  
-      // Rest of your existing data processing
-      const userData: UserDetails = await userRes.json();
-      setUserDetails(userData);
-  
-      const freelancerData: FreelancerDetails = await freelancerRes.json();
-      setFreelancerDetails(freelancerData);
-  
-      const gigsData: ActiveGig[] = await gigsRes.json();
-      setActiveGigs(gigsData);
-  
-      setLoading(false);
-    } catch (err) {
-      // Enhanced error handling for CORS
-      if (err instanceof TypeError) {
-        setError('Network error - check API CORS configuration');
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Unknown error occurred');
-      }
-      setLoading(false);
-    }
-  };
+
   if (loading) {
     return (
       <div className="p-4 md:p-8 max-w-7xl mx-auto">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-8"></div>
+          <div className="h-8 bg-zinc-200 rounded w-1/3 mb-8"></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-48 bg-gray-100 rounded-xl"></div>
+              <div key={i} className="h-48 bg-zinc-100 rounded-xl"></div>
             ))}
           </div>
         </div>
@@ -189,20 +152,20 @@ const CLERK_ID = user.user?.id;
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">Dashboard Overview</h1>
+      <h1 className="text-3xl font-bold mb-8 text-zinc-800 dark:text-zinc-200">Dashboard Overview</h1>
       
       <BentoGrid>
         {/* Updated Profile Card */}
         <BentoCard
           name={user.user?.fullName || "User"}
-          className="md:col-span-1 relative text-white"
+          className="md:col-span-1 relative text-zinc-800 dark:text-zinc-200"
           description={freelancerDetails?.occupation || "Professional"}
           href="/freelancer/profile"
           cta="Edit Profile"
           Icon={({ className, ...props }: React.ComponentProps<typeof User>) => (
             <User
               className={cn(
-                "h-12 w-12 origin-left transform-gpu text-zinc-700 transition-all duration-300 ease-in-out group-hover:scale-75",
+                "h-12 w-12 origin-left transform-gpu text-zinc-700 dark:text-zinc-300 transition-all duration-300 ease-in-out group-hover:scale-75",
                 userDetails?.profilePicture ? "opacity-0" : "",
                 className
               )}
@@ -218,8 +181,7 @@ const CLERK_ID = user.user?.id;
                   className="w-full h-full object-cover"
                 />
               )}
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
-             
+              <div className="absolute inset-0 bg-zinc-900/10 dark:bg-zinc-900/50" />
             </div>
           }
         />
@@ -227,7 +189,7 @@ const CLERK_ID = user.user?.id;
           name="Active Gigs"
           className="md:col-span-2"
           description={`${activeGigs.length} ongoing engagements`}
-          href="/gigs"
+          href="/active-freelance-gigs"
           cta="View All Gigs"
           Icon={Briefcase}
           background={
@@ -235,45 +197,45 @@ const CLERK_ID = user.user?.id;
               {activeGigs.map((gig) => (
                 <a
                   key={gig.id}
-                  href={`/gigs/${gig.id}`}
+                  href={`/gig/${gig.id}`}
                   className="group flex items-center justify-between p-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium">
+                      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                         Gig #{gig.gig_id}
                       </span>
-                      <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 rounded-full">
+                      <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 rounded-full text-blue-800 dark:text-blue-200">
                         {gig.status}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
                       <Clock className="w-4 h-4" />
                       <span>
                         {new Date(gig.created_at).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                  <ChevronRight className="w-5 h-5 text-zinc-600 dark:text-zinc-400 group-hover:translate-x-1 transition-transform" />
                 </a>
               ))}
             </div>
           }
         />
 
-          <BentoCard
-            name="Earnings"
-            className="md:col-span-1"
-            description="Current balance"
-            href="/earnings"
-            cta="View Details"
-            Icon={CircleDollarSign}
-            background={
-              <div className="absolute right-0 top-0 p-4 text-2xl font-bold text-green-600 dark:text-green-300">
-                ${balance?.toLocaleString() || 0}
-              </div>
-            }
-          />  
+        <BentoCard
+          name="Earnings"
+          className="md:col-span-1"
+          description="Current balance"
+          href="/earnings"
+          cta="View Details"
+          Icon={CircleDollarSign}
+          background={
+            <div className="absolute right-0 top-0 p-4 text-2xl font-bold text-green-600 dark:text-green-300">
+              ${balance?.toLocaleString() || 0}
+            </div>
+          }
+        />  
         <BentoCard
           name="Pending Milestones"
           className="md:col-span-1"
@@ -288,8 +250,6 @@ const CLERK_ID = user.user?.id;
           }
         />
       </BentoGrid>
-      
     </div>
-
-  )
+  );
 }

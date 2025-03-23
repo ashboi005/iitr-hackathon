@@ -44,10 +44,10 @@ export default async function GigDetailPage({ params }: { params: { gigId: strin
           <div>
             <h3 className="font-semibold mb-2">Milestones</h3>
             <div className="space-y-2">
-              {gig.milestone_status.map((status, index) => (
+              {gig.milestone_status.map((status: string, index: number) => (
                 <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                   <span>Milestone {index + 1}</span>
-                  <Badge variant={status === 'completed' ? 'success' : 'secondary'}>
+                  <Badge variant={status === 'completed' ? 'default' : 'secondary'}>
                     {status}
                   </Badge>
                 </div>

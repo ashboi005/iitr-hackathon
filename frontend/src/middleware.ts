@@ -8,7 +8,8 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/updateRole",
   "/select-role",
-  "/post-job"
+  "/employerdashboard",
+  "/employerprofile",
 ])
 
 export default clerkMiddleware(async (auth, req) => {

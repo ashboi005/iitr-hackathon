@@ -21,7 +21,7 @@ export function FreelancerSidebar({ currentPath }: { currentPath: string }) {
     },
     {
       label: "Profile",
-      href: "/profile",
+      href: "/freelancerprofile",
       icon: <User className="h-5 w-5 m-1" />,
     },
     {
@@ -30,13 +30,8 @@ export function FreelancerSidebar({ currentPath }: { currentPath: string }) {
       icon: <Briefcase className="h-5 w-5 m-1" />,
     },
     {
-      label: "ActiveGigs",
-      href: "/activegigs",
-      icon: <Briefcase className="h-5 w-5 m-1" />,
-    },
-    {
-      label: "Gigs",
-      href: "/gigs",
+      label: "Active Gigs",
+      href: "/active-gigs",
       icon: <Briefcase className="h-5 w-5 m-1" />,
     },
     {
