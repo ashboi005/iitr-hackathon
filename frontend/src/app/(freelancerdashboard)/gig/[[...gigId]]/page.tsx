@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { Calendar, Briefcase, DollarSign, CheckCircle, XCircle } from "lucide-react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { DialogHeader, DialogFooter } from "@/components/ui/dialog";
